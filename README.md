@@ -208,7 +208,6 @@ Then open the local URL printed in terminal.
 
 ### Limitations
 
-- SQLite is good for local/medium workloads, but not ideal as primary engine for very large interactive analytics.
 - SQL and answer quality still depends on LLM output quality and schema clarity.
 - Current pipeline is strict fail-fast: malformed LLM JSON/SQL stops execution.
 - Gradio UI is minimal and does not include full admin/monitoring controls.
@@ -218,9 +217,8 @@ Then open the local URL printed in terminal.
 - Add optional guarded fallback mode via config for non-critical environments.
 - Add SQL regression tests and benchmark suite.
 - Add evaluation dashboard for retrieval precision, SQL validity rate, and latency.
-- Integrate Spark/Delta as primary engine for 100GB+ workloads; keep SQLite as serving cache.
 - Add enterprise controls: auth, RBAC, audit logs, and rate limits.
-
+- Introduce Human-in-the-Loop (HITL) feedback environment where validated answers are reviewed and approved; approved query–SQL–answer pairs are persisted as table-linked Q&A exemplars in ChromaDB to continuously improve future table selection, routing accuracy, and retrieval precision.
 ---
 
 ## 6. Troubleshooting
