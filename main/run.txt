@@ -1,0 +1,3 @@
+python main.py  --db-path ./retail_insights.db ingest  --input-path "/home/ntlpt19/personal_projects/sales_rag/Sales Dataset/Sales Dataset"
+ 
+python main.py --db-path ./retail_insights.db ask --conversation-id demo --question "Which product line underperformed in Q4?" --debug
