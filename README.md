@@ -1,101 +1,396 @@
-# Retail Insights Assistant (GenAI + Scalable Data System)
+# Retail Insights Assistant
 
-This project implements a multi-agent Retail Insights Assistant that:
-- Ingests sales input files (`.csv`, `.xlsx`, `.json`, `.txt`) into SQLite
-- Supports **Summarization Mode** and **Conversational Q&A Mode**
-- Uses a **multi-agent pipeline** (LangGraph) with required agents:
-  - Language-to-query resolution agent
-  - Data extraction agent
-  - Validation agent
-- Integrates with **Mistral** for SQL planning and business-language responses
-- Adds semantic schema retrieval with **ChromaDB** (fallback to keyword retrieval)
-- Provides architecture/scripts for scaling to **100GB+** using PySpark + Delta Lake
+GenAI-powered retail analytics assistant for:
 
-## Project Structure
+- Dataset ingestion from CSV, Excel, JSON, and TXT
+- Natural-language Q&A over sales data
+- Automated summary generation
+- Multi-agent orchestration (LangGraph)
+- Retrieval-augmented table selection (ChromaDB + embeddings)
 
-- `main.py`: CLI entrypoint
-- `gradio_app.py`: optional UI
-- `retail_insights/`
-  - `ingestion.py`: file ingestion + schema normalization + SQLite load
-  - `agents.py`: multi-agent logic
-  - `graph.py`: LangGraph orchestration
-  - `service.py`: application service API
-  - `llm.py`: Mistral wrapper + response caching
-  - `memory.py`: conversation memory store
-  - `retrieval.py`: metadata/semantic table retrieval (ChromaDB + `Alibaba-NLP/gte-large-en-v1.5`)
-- `spark/`
-  - `ingest_pyspark.py`: batch ingestion + cleaning for 100GB+
-  - `lakehouse_delta.py`: Delta Lake warehouse + Spark SQL analytics layer
-  - `streaming_kafka.py`: optional streaming ingestion skeleton
-- `docs/ARCHITECTURE_100GB.md`: scalability design
+---
 
-## Setup
+## 1. System Overview
+
+This project builds a conversational analytics assistant that converts business questions into SQL, executes SQL on SQLite, and returns grounded insights.
+
+Core modes:
+
+- `ingest`: Load data files into SQLite and build retrieval metadata
+- `ask`: Ask ad-hoc business questions
+- `summarize`: Get concise performance summaries
+- `interactive`: Command-line chat loop
+- `gradio_app.py`: Web UI for ingestion, summary, and Q&A
+
+---
+
+## 2. Architecture and Data Flow
+
+```mermaid
+flowchart TD
+    A[User Request: CLI or Gradio] --> B{Mode}
+
+    B -->|ingest| C[DataIngestionService.ingest]
+    C --> C1[Read files: CSV/XLSX/JSON/TXT]
+    C1 --> C2[Normalize columns/values]
+    C2 --> C3[Write business tables to SQLite]
+    C3 --> C4[Upsert table_metadata]
+    C4 --> C5[MetadataRetriever.refresh]
+    C5 --> C6[LLM profile per table]
+    C6 --> C7[Create table docs]
+    C7 --> C8[Upsert docs + metadata into ChromaDB]
+    C8 --> Z[Ingestion Complete]
+
+    B -->|ask/summarize| D[LangGraph Pipeline]
+    D --> E[QueryEnhancementAgent]
+    E --> F[QueryResolutionAgent]
+    F --> F1[Retrieve candidate tables from Chroma]
+    F1 --> F2[LLM rerank candidate tables]
+    F2 --> F3[Generate SQL from schema context]
+    F3 --> G[ValidationAgent]
+    G -->|valid| H[DataExtractionAgent]
+    G -->|invalid| X[Stop: raise error]
+    H --> I[ResponseAgent]
+    I --> Y[Final answer + confidence + debug info]
+```
+
+### Query-Time Sequence
+
+```mermaid
+sequenceDiagram
+    participant U as User
+    participant APP as Assistant Service
+    participant GE as QueryEnhancementAgent
+    participant RET as Retriever (Chroma + Router + Reranker)
+    participant QR as QueryResolutionAgent
+    participant VA as ValidationAgent
+    participant DB as SQLite
+    participant RA as ResponseAgent
+    participant LLM as Mistral
+
+    U->>APP: ask(question)
+    APP->>GE: enhance query
+    GE->>LLM: enhancement prompt
+    LLM-->>GE: enhanced question
+
+    APP->>RET: top candidate tables
+    RET->>LLM: question router JSON
+    RET->>RET: Chroma semantic query
+    RET->>LLM: rerank candidates
+    RET-->>APP: ranked tables
+
+    APP->>QR: generate SQL
+    QR->>LLM: SQL generation prompt
+    LLM-->>QR: sql_query JSON
+
+    APP->>VA: validate SQL
+    VA->>DB: EXPLAIN QUERY PLAN
+    DB-->>VA: validation result
+
+    APP->>DB: execute SQL
+    DB-->>APP: rows + columns
+
+    APP->>RA: generate final answer
+    RA->>LLM: answer synthesis prompt
+    LLM-->>RA: final response
+    RA-->>U: answer + confidence
+```
+
+---
+
+## 3. Project Structure
+
+```text
+main/
+|-- main.py
+|-- gradio_app.py
+|-- requirements.txt
+|-- retail_insights.db                 # created at runtime
+|-- chroma_db/                         # created at runtime
+|-- retail_insights/
+|   |-- agents.py
+|   |-- cache.py
+|   |-- config.py
+|   |-- graph.py
+|   |-- ingestion.py
+|   |-- llm.py
+|   |-- memory.py
+|   |-- monitoring.py
+|   |-- prompts.py
+|   |-- retrieval.py
+|   `-- sqlite_utils.py
+|-- spark/
+|   |-- ingest_pyspark.py
+|   `-- lakehouse_delta.py
+`-- README.md
+```
+
+---
+
+## 4. Setup Instructions
+
+### 4.1 Clone Repository
 
 ```bash
-cd /home/ntlpt19/personal_projects/sales_rag/main
+git clone <your-repo-url>
+cd retail_insights_engine/main
+```
+
+### 4.2 Create Virtual Environment
+
+```bash
 python3 -m venv .venv
 source .venv/bin/activate
+```
+
+### 4.3 Install Dependencies
+
+```bash
 pip install -r requirements.txt
 ```
 
-Set env vars (recommended):
+Current `requirements.txt` includes:
 
-```bash
-export MISTRAL_API_KEY="<your_key>"
-export MISTRAL_MODEL="mistral-medium-latest"
+- pandas
+- openpyxl
+- mistralai
+- langgraph
+- numpy
+- python-dotenv
+- gradio
+- chromadb
+- sentence-transformers
+
+### 4.4 Environment Variables
+
+Create `.env` in project root:
+
+```env
+MISTRAL_API_KEY=your_api_key_here
+MISTRAL_MODEL=mistral-medium-latest
+SQLITE_DB_PATH=./retail_insights.db
+CHROMA_PERSIST_PATH=./chroma_db
+EMBEDDING_MODEL_NAME=Alibaba-NLP/gte-large-en-v1.5
+LLM_TEMPERATURE=0.2
+MAX_SQL_ROWS=200
+MEMORY_TURNS=8
 ```
 
-If `MISTRAL_API_KEY` is missing, the app runs with deterministic fallback responses.
+---
 
-## Run with Your Dataset
+## 5. Run Instructions (CLI)
 
-Your sample dataset folder:
-`/home/ntlpt19/personal_projects/sales_rag/Sales Dataset/Sales Dataset`
+All commands from project root.
 
-### 1) Ingest
-
-```bash
-python3 main.py --db-path ./retail_insights.db ingest \
-  --input-path "/home/ntlpt19/personal_projects/sales_rag/Sales Dataset/Sales Dataset"
-```
-
-### 2) Summarize
+### 5.1 Ingest Data
 
 ```bash
-python3 main.py --db-path ./retail_insights.db summarize \
-  --conversation-id demo
+python3 main.py --db-path ./retail_insights.db ingest --input-path "/path/to/data/folder_or_file"
 ```
 
-### 3) Ask Ad-hoc Questions
+Example:
 
 ```bash
-python3 main.py --db-path ./retail_insights.db ask \
-  --conversation-id demo \
-  --question "Which category has the highest total amount?"
+python3 main.py --db-path ./retail_insights.db ingest --input-path "/home/ntlpt19/personal_projects/sales_rag/Sales Dataset/Sales Dataset"
 ```
 
-### 4) Interactive Mode
+### 5.2 Ask a Question
 
 ```bash
-python3 main.py --db-path ./retail_insights.db interactive --conversation-id demo
+python3 main.py --db-path ./retail_insights.db ask --conversation-id demo --question "Which product line underperformed in Q4?"
 ```
 
-### 5) Optional Gradio UI
+### 5.3 Ask with Debug
+
+```bash
+python3 main.py --db-path ./retail_insights.db ask --conversation-id demo --question "Top categories by revenue in April" --debug
+```
+
+### 5.4 Summarization Mode
+
+```bash
+python3 main.py --db-path ./retail_insights.db summarize --conversation-id demo
+```
+
+Custom summary prompt:
+
+```bash
+python3 main.py --db-path ./retail_insights.db summarize --conversation-id demo --prompt "Summarize YoY regional sales performance." --debug
+```
+
+### 5.5 Interactive Shell
+
+```bash
+python3 main.py --db-path ./retail_insights.db interactive --conversation-id demo --debug
+```
+
+---
+
+## 6. Run Instructions (Gradio UI)
 
 ```bash
 python3 gradio_app.py
 ```
 
-## Prompt Engineering + Context
+Then open the local URL shown in terminal (usually `http://127.0.0.1:7860`).
 
-- Prompt templates enforce:
-  - JSON-structured query plans
-  - read-only SQL policy
-  - grounded final responses
-- Conversation memory is persisted in SQLite (`conversation_turns`)
-- LLM outputs are cached in SQLite (`llm_cache`) for latency/cost control
+Tabs available:
 
-## Notes
+- Ingestion
+- Summarization
+- Q&A
 
-- SQLite is the local analytical layer for prototype and moderate-sized workloads.
-- For 100GB+ historical data, use Spark + Delta architecture in `docs/ARCHITECTURE_100GB.md` and `spark/` scripts.
+---
+
+## 7. Debug Output Contents
+
+When `--debug` is enabled, output includes:
+
+- Retrieval diagnostics (`candidate_tables`, retrieval method, rerank info)
+- Query SQL prompt (system and user prompt)
+- Generated and validated SQL
+- Raw SQL output (`columns`, `rows`, `row_count`)
+- Final answer prompt
+
+---
+
+## 8. Data and Storage Details
+
+### SQLite Tables
+
+- Business tables generated from ingested files
+- System tables:
+  - `table_metadata`
+  - `conversation_turns`
+  - `llm_cache`
+  - `table_profile_cache`
+
+### ChromaDB
+
+- Persistent path: `./chroma_db` (configurable)
+- Collection: schema/table profile docs used for table retrieval
+
+---
+
+## 9. Optional 100GB+ Scaling Path
+
+For large-scale historical data:
+
+- Ingestion/cleaning with PySpark (`spark/ingest_pyspark.py`)
+- Storage in Parquet/Delta (`spark/lakehouse_delta.py`)
+- Analytical queries on Spark SQL
+- Keep SQLite as lightweight serving cache for interactive use
+- Keep Chroma indexing at table/profile level (not full-row embeddings)
+
+---
+
+## 10. Troubleshooting
+
+- `MISTRAL_API_KEY is required`
+  - Ensure `.env` contains valid API key
+- JSON parse errors from LLM
+  - Check prompt output format and run with `--debug`
+- No candidate tables from retrieval
+  - Re-run `ingest`; ensure retriever refresh completed
+- First run is slow
+  - Embedding model download may take time
+
+---
+
+## 11. Quick Start (Minimal)
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+
+# set MISTRAL_API_KEY in .env
+
+python3 main.py --db-path ./retail_insights.db ingest --input-path "/path/to/data"
+python3 main.py --db-path ./retail_insights.db ask --conversation-id demo --question "Which category had highest sales in April?" --debug
+```
+
+---
+
+## 12. Setup and Execution Guide
+
+### Step 1: Environment setup
+
+```bash
+git clone <your-repo-url>
+cd retail_insights_engine/main
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+### Step 2: Configure secrets and runtime vars
+
+Create `.env`:
+
+```env
+MISTRAL_API_KEY=your_api_key_here
+MISTRAL_MODEL=mistral-medium-latest
+SQLITE_DB_PATH=./retail_insights.db
+CHROMA_PERSIST_PATH=./chroma_db
+EMBEDDING_MODEL_NAME=Alibaba-NLP/gte-large-en-v1.5
+```
+
+### Step 3: Ingest data
+
+```bash
+python3 main.py --db-path ./retail_insights.db ingest --input-path "/path/to/data"
+```
+
+### Step 4: Run query workflows
+
+Ask:
+
+```bash
+python3 main.py --db-path ./retail_insights.db ask --conversation-id demo --question "Which product line underperformed in Q4?" --debug
+```
+
+Summarize:
+
+```bash
+python3 main.py --db-path ./retail_insights.db summarize --conversation-id demo --debug
+```
+
+Interactive shell:
+
+```bash
+python3 main.py --db-path ./retail_insights.db interactive --conversation-id demo --debug
+```
+
+### Step 5: Launch web UI
+
+```bash
+python3 gradio_app.py
+```
+
+Open the local Gradio URL shown in terminal.
+
+---
+
+## 13. Assumptions, Limitations, and Possible Improvements
+
+### Assumptions
+
+- Input files are business tables that can be loaded as flat tabular data.
+- Mistral API is available and `MISTRAL_API_KEY` is configured.
+- Date fields in key sales tables commonly follow `MM-DD-YY` string format unless schema indicates otherwise.
+- Table-level retrieval is sufficient for selecting relevant sources before SQL generation.
+
+### Limitations
+
+- Query accuracy depends on LLM output quality and schema clarity.
+- Strict fail-fast behavior stops execution on malformed LLM JSON/SQL (good for safety, but less forgiving UX).
+- Gradio app currently exposes core workflows but does not include advanced admin/monitoring controls.
+
+### Possible Improvements
+
+- Add optional guarded fallback path (config-driven) for non-critical environments.
+- Add SQL unit/e2e test suite with golden query-answer cases.
+- Add evaluation dashboard for retrieval precision, SQL validity rate, and latency percentiles.
+- Introduce hybrid retrieval (metadata filter + semantic + rule-based constraints).
+- Introduce Human-in-the-Loop (HITL) feedback environment where validated answers are reviewed and approved; approved query–SQL–answer pairs are persisted as table-linked Q&A exemplars in ChromaDB to continuously improve future table selection, routing accuracy, and retrieval precision.
