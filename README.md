@@ -24,7 +24,349 @@ Core modes:
 
 ---
 
-## 2. Architecture and Data Flow
+## 2. System Architecture
+   
+   ### Flowchart
+```mermaid
+   <!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Retail Insights System Architecture</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.min.js"></script>
+    <style>
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            min-height: 100vh;
+            padding: 20px;
+        }
+
+        .container {
+            max-width: 1400px;
+            margin: 0 auto;
+            background: white;
+            border-radius: 16px;
+            box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
+            overflow: hidden;
+        }
+
+        .header {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            color: white;
+            padding: 30px;
+            text-align: center;
+        }
+
+        .header h1 {
+            font-size: 2.5em;
+            margin-bottom: 10px;
+            font-weight: 700;
+        }
+
+        .header p {
+            font-size: 1.1em;
+            opacity: 0.95;
+        }
+
+        .tabs {
+            display: flex;
+            background: #f8f9fa;
+            border-bottom: 2px solid #e9ecef;
+        }
+
+        .tab {
+            flex: 1;
+            padding: 20px;
+            text-align: center;
+            cursor: pointer;
+            font-size: 1.1em;
+            font-weight: 600;
+            color: #6c757d;
+            transition: all 0.3s ease;
+            border-bottom: 3px solid transparent;
+        }
+
+        .tab:hover {
+            background: #e9ecef;
+            color: #495057;
+        }
+
+        .tab.active {
+            color: #667eea;
+            background: white;
+            border-bottom-color: #667eea;
+        }
+
+        .diagram-container {
+            display: none;
+            padding: 40px;
+            overflow-x: auto;
+        }
+
+        .diagram-container.active {
+            display: block;
+        }
+
+        .diagram-wrapper {
+            min-height: 600px;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+        }
+
+        .controls {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-bottom: 20px;
+            flex-wrap: wrap;
+        }
+
+        .btn {
+            padding: 10px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 0.95em;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
+        }
+
+        .btn-primary {
+            background: #667eea;
+            color: white;
+        }
+
+        .btn-primary:hover {
+            background: #5568d3;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(102, 126, 234, 0.4);
+        }
+
+        .btn-secondary {
+            background: #6c757d;
+            color: white;
+        }
+
+        .btn-secondary:hover {
+            background: #5a6268;
+            transform: translateY(-2px);
+            box-shadow: 0 4px 12px rgba(108, 117, 125, 0.4);
+        }
+
+        .info-box {
+            background: #e7f3ff;
+            border-left: 4px solid #667eea;
+            padding: 15px;
+            margin-bottom: 20px;
+            border-radius: 4px;
+        }
+
+        .info-box h3 {
+            color: #667eea;
+            margin-bottom: 8px;
+            font-size: 1.1em;
+        }
+
+        .info-box p {
+            color: #495057;
+            line-height: 1.6;
+        }
+
+        .mermaid {
+            text-align: center;
+        }
+
+        @media (max-width: 768px) {
+            .header h1 {
+                font-size: 1.8em;
+            }
+            
+            .tab {
+                padding: 15px 10px;
+                font-size: 0.95em;
+            }
+            
+            .diagram-container {
+                padding: 20px;
+            }
+        }
+
+        .footer {
+            text-align: center;
+            padding: 20px;
+            color: #6c757d;
+            background: #f8f9fa;
+            border-top: 1px solid #e9ecef;
+        }
+
+        /* Zoom controls */
+        #zoomLevel {
+            display: inline-block;
+            min-width: 60px;
+            text-align: center;
+            font-weight: 600;
+            color: #495057;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <div class="header">
+            <h1>🏪 Retail Insights System Architecture</h1>
+            <p>Interactive system flowchart and sequence diagrams</p>
+        </div>
+
+        <div class="tabs">
+            <div class="tab active" onclick="switchTab('flowchart')">
+                📊 System Flowchart
+            </div>
+            <div class="tab" onclick="switchTab('sequence')">
+                🔄 Sequence Diagram
+            </div>
+        </div>
+
+        <div id="flowchart" class="diagram-container active">
+            <div class="info-box">
+                <h3>System Flowchart Overview</h3>
+                <p>This diagram shows the complete data flow from ingestion through query processing to response generation. It includes caching layers, storage components, and all agent interactions.</p>
+            </div>
+
+            <div class="controls">
+                <button class="btn btn-primary" onclick="zoomIn('flowchart-diagram')">🔍 Zoom In</button>
+                <button class="btn btn-primary" onclick="zoomOut('flowchart-diagram')">🔍 Zoom Out</button>
+                <button class="btn btn-secondary" onclick="resetZoom('flowchart-diagram')">↺ Reset</button>
+                <span id="zoomLevel">100%</span>
+            </div>
+
+            <div class="diagram-wrapper" id="flowchart-diagram">
+                <div class="mermaid">
+```
+   
+   ### Sequence Diagram
+```mermaid
+    </div>
+            </div>
+        </div>
+
+        <div class="footer">
+            <p>💡 Tip: Use zoom controls to explore details. Click nodes and connections for interactions.</p>
+        </div>
+    </div>
+
+    <script>
+        // Initialize Mermaid
+        mermaid.initialize({ 
+            startOnLoad: true,
+            theme: 'default',
+            flowchart: {
+                useMaxWidth: true,
+                htmlLabels: true,
+                curve: 'basis'
+            },
+            sequence: {
+                useMaxWidth: true,
+                wrap: true
+            }
+        });
+
+        // Zoom levels
+        let flowchartZoom = 1;
+        let sequenceZoom = 1;
+
+        function switchTab(tabName) {
+            // Remove active class from all tabs and containers
+            document.querySelectorAll('.tab').forEach(tab => tab.classList.remove('active'));
+            document.querySelectorAll('.diagram-container').forEach(container => container.classList.remove('active'));
+            
+            // Add active class to selected tab and container
+            event.target.classList.add('active');
+            document.getElementById(tabName).classList.add('active');
+        }
+
+        function zoomIn(diagramId) {
+            const diagram = document.getElementById(diagramId);
+            const isFlowchart = diagramId === 'flowchart-diagram';
+            
+            if (isFlowchart) {
+                flowchartZoom = Math.min(flowchartZoom + 0.1, 2);
+                diagram.style.transform = `scale(${flowchartZoom})`;
+                document.getElementById('zoomLevel').textContent = Math.round(flowchartZoom * 100) + '%';
+            } else {
+                sequenceZoom = Math.min(sequenceZoom + 0.1, 2);
+                diagram.style.transform = `scale(${sequenceZoom})`;
+                document.getElementById('zoomLevel2').textContent = Math.round(sequenceZoom * 100) + '%';
+            }
+            
+            diagram.style.transformOrigin = 'center top';
+            diagram.style.transition = 'transform 0.3s ease';
+        }
+
+        function zoomOut(diagramId) {
+            const diagram = document.getElementById(diagramId);
+            const isFlowchart = diagramId === 'flowchart-diagram';
+            
+            if (isFlowchart) {
+                flowchartZoom = Math.max(flowchartZoom - 0.1, 0.5);
+                diagram.style.transform = `scale(${flowchartZoom})`;
+                document.getElementById('zoomLevel').textContent = Math.round(flowchartZoom * 100) + '%';
+            } else {
+                sequenceZoom = Math.max(sequenceZoom - 0.1, 0.5);
+                diagram.style.transform = `scale(${sequenceZoom})`;
+                document.getElementById('zoomLevel2').textContent = Math.round(sequenceZoom * 100) + '%';
+            }
+            
+            diagram.style.transformOrigin = 'center top';
+            diagram.style.transition = 'transform 0.3s ease';
+        }
+
+        function resetZoom(diagramId) {
+            const diagram = document.getElementById(diagramId);
+            const isFlowchart = diagramId === 'flowchart-diagram';
+            
+            if (isFlowchart) {
+                flowchartZoom = 1;
+                document.getElementById('zoomLevel').textContent = '100%';
+            } else {
+                sequenceZoom = 1;
+                document.getElementById('zoomLevel2').textContent = '100%';
+            }
+            
+            diagram.style.transform = 'scale(1)';
+            diagram.style.transition = 'transform 0.3s ease';
+        }
+
+        // Add keyboard shortcuts
+        document.addEventListener('keydown', function(e) {
+            const activeContainer = document.querySelector('.diagram-container.active');
+            const diagramId = activeContainer.id === 'flowchart' ? 'flowchart-diagram' : 'sequence-diagram';
+            
+            if (e.ctrlKey || e.metaKey) {
+                if (e.key === '=' || e.key === '+') {
+                    e.preventDefault();
+                    zoomIn(diagramId);
+                } else if (e.key === '-') {
+                    e.preventDefault();
+                    zoomOut(diagramId);
+                } else if (e.key === '0') {
+                    e.preventDefault();
+                    resetZoom(diagramId);
+                }
+            }
+        });
+    </script>
+</body>
+</html>
+```
 
 ```mermaid
 flowchart TD
