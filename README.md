@@ -231,3 +231,15 @@ Then open the local URL printed in terminal.
   - Re-run ingestion and ensure retriever index refresh completes.
 - Slow first run
   - Embedding model may download on first use.
+
+---
+
+## 7. QA and Summarizer Screenshots
+
+### QA
+
+![QA Screenshot](main/pisc/QA.png)
+
+### Summarizer
+
+![Summarizer Screenshot](main/pisc/Summarizer.png)
